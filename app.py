@@ -104,7 +104,7 @@ def transaction_detail(transaction_id):
     transaction = Transaction.query.get_or_404(transaction_id)
     if request.method == 'POST':
         status = request.form['status']
-        if transaction.status == 'ожидание' and status in ['подтвеждена', 'истекла']:
+        if transaction.status == 'ожидание' and status in ['подтвеждена', 'отменена']:
             transaction.status = status
             db.session.commit()
         return redirect(url_for('admin_transactions'))

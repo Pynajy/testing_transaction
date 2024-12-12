@@ -19,6 +19,7 @@
                     <th>Комиссия</th>
                     <th>Статус</th>
                     <th>Время создания</th>
+                    <th>Действие</th>
                 </tr>
             </thead>
             <tbody>
@@ -30,6 +31,9 @@
                     <td>${{ transaction.commission }}</td>
                     <td>{{ transaction.status }}</td>
                     <td>{{ transaction.created_at }}</td>
+                    <td>
+                        <a href="/admin/transactions/{{ transaction.id }}" class="btn btn-info btn-sm">Просмотр</a>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
