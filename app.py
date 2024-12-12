@@ -87,6 +87,15 @@ def edit_user(user_id):
         return redirect(url_for('admin_users'))
     return render_template('edit_user.html', user=user)
 
+@app.route('/admin/users/add', methods=['GET', 'POST'])
+def add_user():
+    if request.method == 'POST':
+        user = User(balance = float(request.form['balance']), commission_rate = float(request.form['commission_rate']), webhook_url = request.form['webhook_url'])
+        db.session.add(user)
+        db.session.commit()
+        return redirect(url_for('admin_users'))
+    return render_template('add_user.html')
+
 @app.route('/admin/users/delete/<int:user_id>', methods=['POST'])
 def delete_user(user_id):
     user = User.query.get_or_404(user_id)
