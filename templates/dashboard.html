@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель администратора</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Панель администратора</h1>
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Пользователи</h5>
+                        <p class="card-text">{{ user_count }} пользователей</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-success mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Транзакции</h5>
+                        <p class="card-text">{{ transaction_count }} транзакций</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-warning mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Сегодняшний итог</h5>
+                        <p class="card-text">${{ total_transaction_sum }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="mt-5">Недавние транзакции</h2>
+        <table class="table table-striped mt-3">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Сумма</th>
+                    <th>Комиссия</th>
+                    <th>статус</th>
+                    <th>Время создания</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in recent_transactions %}
+                <tr>
+                    <td>{{ transaction.id }}</td>
+                    <td>${{ transaction.amount }}</td>
+                    <td>${{ transaction.commission }}</td>
+                    <td>{{ transaction.status }}</td>
+                    <td>{{ transaction.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
