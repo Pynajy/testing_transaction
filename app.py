@@ -66,13 +66,11 @@ class Transaction(db.Model):
         return f'<Transaction {self.id}: Сумма={self.amount}, Комиссия={self.commission}, статус={self.status}>'
 
 
-# Login form
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
 
-# Registration form
 class RegistrationForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=80)])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
@@ -80,7 +78,11 @@ class RegistrationForm(FlaskForm):
     role = SelectField('Role', choices=[('admin', 'Admin'), ('user', 'User')], validators=[DataRequired()])
     submit = SubmitField('Register')
 
+class TransactionForm(FlaskForm):
+    submit = SubmitField('Register')
 
+class UserForm(FlaskForm):
+    submit = SubmitField('Register')
 
 @app.cli.command("create-admin")
 @click.argument('username')
@@ -157,14 +159,16 @@ def edit_user(user_id):
             return redirect(url_for('login'))
         else:
             return redirect(url_for('admin_transactions'))
+    form = UserForm()
     user = User.query.get_or_404(user_id)
     if request.method == 'POST':
         user.balance = float(request.form['balance'])
         user.commission_rate = float(request.form['commission_rate'])
+        user.role = str(request.form['role'])
         user.webhook_url = request.form['webhook_url']
         db.session.commit()
         return redirect(url_for('admin_users'))
-    return render_template('edit_user.html', user=user)
+    return render_template('edit_user.html', user=user, form=form)
 
 @app.route('/admin/users/add', methods=['GET', 'POST'])
 def add_user():
@@ -173,14 +177,22 @@ def add_user():
             return redirect(url_for('login'))
         else:
             return redirect(url_for('admin_transactions'))
+    form = RegistrationForm()
     if request.method == 'POST':
-        user = User(balance = float(request.form['balance']), commission_rate = float(request.form['commission_rate']), webhook_url = request.form['webhook_url'])
+        user = User(
+            username = str(request.form['username']),
+            balance = float(request.form['balance']), 
+            commission_rate = float(request.form['commission_rate']), 
+            webhook_url = request.form['webhook_url']
+            )
+        user.set_password(request.form['password'])
         db.session.add(user)
         db.session.commit()
         return redirect(url_for('admin_users'))
-    return render_template('add_user.html')
+    return render_template('add_user.html', form=form)
 
 @app.route('/admin/users/delete/<int:user_id>', methods=['POST'])
+@csrf.exempt
 def delete_user(user_id):
     if session.get('role') != 'admin':
         if session.get('role') != 'user':
@@ -194,13 +206,29 @@ def delete_user(user_id):
 
 @app.route('/admin/transactions')
 def admin_transactions():
-    if session.get('role') == 'admin':
-        transactions = Transaction.query.all()
-    elif session.get('role') == 'user':
-        user_id = session.get('user_id')
-        transactions = Transaction.query.filter_by(user_id=user_id).all()
-    else:
+    user_id = session.get('user_id')
+    role = session.get('role')
+
+    if role not in ['admin', 'user']:
         return redirect(url_for('login'))
+
+    # Получаем фильтры из запроса
+    filter_user_id = request.args.get('user_id')
+    filter_status = request.args.get('status')
+
+    # Строим запрос на основе роли и фильтров
+    query = Transaction.query
+
+    if role == 'user':
+        query = query.filter_by(user_id=user_id)
+
+    if filter_user_id:
+        query = query.filter_by(user_id=filter_user_id)
+
+    if filter_status:
+        query = query.filter_by(status=filter_status)
+
+    transactions = query.all()
 
     return render_template('transactions.html', transactions=transactions)
 
@@ -209,6 +237,7 @@ def transaction_detail(transaction_id):
     if session.get('role') != 'admin':
         if session.get('role') != 'user':
             return redirect(url_for('login'))
+    form = TransactionForm()
     transaction = Transaction.query.get_or_404(transaction_id)
     if request.method == 'POST':
         status = request.form['status']
@@ -216,7 +245,7 @@ def transaction_detail(transaction_id):
             transaction.status = status
             db.session.commit()
         return redirect(url_for('admin_transactions'))
-    return render_template('transaction_detail.html', transaction=transaction)
+    return render_template('transaction_detail.html', transaction=transaction, form=form)
 
 @app.route('/create_transaction', methods=['POST'])
 @csrf.exempt

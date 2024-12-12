@@ -10,6 +10,28 @@
     <div class="container mt-5">
         <h1>Просмотр транзакций</h1>
 
+        <form method="GET" action="/admin/transactions" class="mb-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="user_id" class="form-label">Фильтр по ID пользователя</label>
+                    <input type="text" class="form-control" id="user_id" name="user_id" placeholder="Введите ID пользователя" value="{{ request.args.get('user_id', '') }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Фильтр по статусу</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="">Все</option>
+                        <option value="ожидание" {% if request.args.get('status') == 'ожидание' %}selected{% endif %}>ожидание</option>
+                        <option value="подтвеждена" {% if request.args.get('status') == 'подтвеждена' %}selected{% endif %}>подтвеждена</option>
+                        <option value="отменена" {% if request.args.get('status') == 'отменена' %}selected{% endif %}>отменена</option>
+                        <option value="истекла" {% if request.args.get('status') == 'истекла' %}selected{% endif %}>истекла</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </div>
+        </form>
+
         <table class="table table-striped">
             <thead>
                 <tr>

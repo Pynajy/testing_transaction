@@ -18,6 +18,8 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Имя пользователя</th>
+                    <th>Роль</th>
                     <th>Баланс</th>
                     <th>Ставка комиссии</th>
                     <th>Webhook URL</th>
@@ -28,6 +30,8 @@
                 {% for user in users %}
                 <tr>
                     <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.role }}</td>
                     <td>${{ user.balance }}</td>
                     <td>{{ user.commission_rate * 100 }}%</td>
                     <td>{{ user.webhook_url or 'None' }}</td>

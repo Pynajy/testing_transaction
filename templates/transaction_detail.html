@@ -39,6 +39,7 @@
         {% if transaction.status == "ожидание" %}
 
         <form method="POST" action="/admin/transactions/{{ transaction.id }}">
+            {{ form.hidden_tag() }}
             <div class="mb-3">
                 <label for="status" class="form-label">Изменить статус</label>
                 <select id="status" name="status" class="form-select">
