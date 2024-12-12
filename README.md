@@ -2,6 +2,8 @@
 - **/admin** - Админ панель
 - **/admin/users** - Пользователи
 - **/admin/transactions** - Транзакции
+- **/login** - Авторизация
+- **/logout** - Выход из аккаунта
 - **/apidocs/** - Swagger
 
 ### Команды
