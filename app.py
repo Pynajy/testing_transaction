@@ -38,9 +38,9 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='user')  # 'admin' or 'user'
+    role = db.Column(db.String(20), nullable=False, default='user') 
     balance = db.Column(db.Float, nullable=False, default=0.0)
-    commission_rate = db.Column(db.Float, nullable=False, default=0.01)  # Default commission rate is 1%
+    commission_rate = db.Column(db.Float, nullable=False, default=0.01) 
     webhook_url = db.Column(db.String(256), nullable=True)
 
     def set_password(self, password):
@@ -63,7 +63,15 @@ class Transaction(db.Model):
     user = db.relationship('User', backref=db.backref('transactions', lazy=True))
 
     def __repr__(self):
-        return f'<Transaction {self.id}: Сумма={self.amount}, Комиссия={self.commission}, статус={self.status}>'
+        return f'<Транзакция {self.id}: Сумма={self.amount}, Комиссия={self.commission}, статус={self.status}>'
+
+
+class Settings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    auto_update = db.Column(db.String(20), nullable=False, default='10 сек')
+
+    def __repr__(self):
+        return  f'<Настройки: Автообновление={self.auto_update}>'
 
 
 class LoginForm(FlaskForm):
@@ -84,6 +92,9 @@ class TransactionForm(FlaskForm):
 class UserForm(FlaskForm):
     submit = SubmitField('Register')
 
+class SettingsForm(FlaskForm):
+    submit = SubmitField('Register')
+
 @app.cli.command("create-admin")
 @click.argument('username')
 @click.argument('password')
@@ -94,17 +105,6 @@ def create_admin(username, password):
     db.session.add(admin)
     db.session.commit()
     print(f"Admin user created with username: {admin.username}")
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        user = User(username=form.username.data, role=form.role.data, balance=0.0, commission_rate=0.01)
-        user.set_password(form.password.data)
-        db.session.add(user)
-        db.session.commit()
-        return redirect(url_for('login'))
-    return render_template('register.html', form=form)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -129,18 +129,33 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-@app.route('/admin')
+@app.route('/admin', methods=['GET', 'POST'])
 def admin_dashboard():
     if session.get('role') != 'admin':
         if session.get('role') != 'user':
             return redirect(url_for('login'))
         else:
             return redirect(url_for('admin_transactions'))
+    form = SettingsForm()
     user_count = User.query.count()
     transaction_count = Transaction.query.count()
     total_transaction_sum = db.session.query(db.func.sum(Transaction.amount)).filter(Transaction.created_at >= datetime.now().date()).scalar() or 0.0
     recent_transactions = Transaction.query.order_by(Transaction.created_at.desc()).limit(5).all()
-    return render_template('dashboard.html', user_count=user_count, transaction_count=transaction_count, total_transaction_sum=total_transaction_sum, recent_transactions=recent_transactions)
+    settings = Settings.query.get_or_404(1)
+
+    if request.method == 'POST':
+        settings.auto_update = str(request.form['auto_update'])
+        db.session.commit()
+        return redirect(url_for('admin_dashboard'))
+    return render_template(
+        'dashboard.html', 
+        user_count=user_count, 
+        transaction_count=transaction_count, 
+        total_transaction_sum=total_transaction_sum, 
+        recent_transactions=recent_transactions, 
+        form=form, 
+        settings=settings
+        )
 
 @app.route('/admin/users')
 def admin_users():
@@ -212,11 +227,9 @@ def admin_transactions():
     if role not in ['admin', 'user']:
         return redirect(url_for('login'))
 
-    # Получаем фильтры из запроса
     filter_user_id = request.args.get('user_id')
     filter_status = request.args.get('status')
 
-    # Строим запрос на основе роли и фильтров
     query = Transaction.query
 
     if role == 'user':
@@ -230,7 +243,9 @@ def admin_transactions():
 
     transactions = query.all()
 
-    return render_template('transactions.html', transactions=transactions)
+    settings = Settings.query.get_or_404(1)
+
+    return render_template('transactions.html', transactions=transactions, settings=(int(str(settings.auto_update).split()[0]) if str(settings.auto_update).split()[1] == "сек" else int(str(settings.auto_update).split()[0])*60))
 
 @app.route('/admin/transactions/<int:transaction_id>', methods=['GET', 'POST'])
 def transaction_detail(transaction_id):

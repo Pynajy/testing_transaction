@@ -62,4 +62,13 @@
         </table>
     </div>
 </body>
+<script>
+    const refreshInterval = {{ settings }};
+    function autoRefresh() {
+        setTimeout(() => {
+            location.reload();
+        }, refreshInterval * 1000);
+    }
+    document.addEventListener("DOMContentLoaded", autoRefresh);
+</script>
 </html>

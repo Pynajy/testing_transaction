@@ -60,5 +60,26 @@
             </tbody>
         </table>
     </div>
+    <div class="container mt-5">
+        <h1>Изменение настроек</h1>
+
+        <form method="POST" action="/admin">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+                <label for="status" class="form-label">Роль пользователя</label>
+                <select id="auto_update" name="auto_update" class="form-select">
+                    <option value="{{ settings.auto_update }}">{{ settings.auto_update }}</option>
+                    <option value="0 сек">0 сек</option>
+                    <option value="10 сек">10 сек</option>
+                    <option value="15 сек">15 сек</option>
+                    <option value="30 сек">15 сек</option>
+                    <option value="1 минута">1 минута</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-success">Сохранить</button>
+        </form>
+    </div>
 </body>
 </html>

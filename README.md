@@ -14,3 +14,6 @@
 - **celery -A app.celery worker --loglevel=info --pool=solo**
 - **celery -A app.celery beat --loglevel=info**
 
+**Admin**
+- **admin** - Логин
+- **123** - Пароль
