@@ -174,6 +174,8 @@ def admin_dashboard():
     user_count = User.query.count()
     transaction_count = Transaction.query.count()
     total_transaction_sum = db.session.query(db.func.sum(Transaction.amount)).filter(Transaction.created_at >= datetime.now().date()).scalar() or 0.0
+    day_transaction_sum_commission = db.session.query(db.func.sum(Transaction.commission)).filter(Transaction.created_at >= datetime.now().date()).scalar() or 0.0
+    total_transaction_sum_commission = db.session.query(db.func.sum(Transaction.commission)).scalar() or 0.0
     recent_transactions = Transaction.query.order_by(Transaction.created_at.desc()).limit(5).all()
     settings = Settings.query.get_or_404(1)
 
@@ -187,6 +189,8 @@ def admin_dashboard():
         transaction_count=transaction_count, 
         total_transaction_sum=total_transaction_sum, 
         recent_transactions=recent_transactions, 
+        total_transaction_sum_commission=total_transaction_sum_commission,
+        day_transaction_sum_commission=day_transaction_sum_commission,
         form=form, 
         settings=settings
         )
@@ -375,9 +379,13 @@ def create_transaction():
         schema:
           type: object
           properties:
+            app_token:
+              type: integer
+              description: ID токена приложения
+              example: testnet-8l5SB6YVXsPtTdMt1RLWwG7BJvEecq3Z
             wallet:
               type: integer
-              description: wallet ID
+              description: ID кошелька
               example: testnet-8l5SB6YVXsPtTdMt1RLWwG7BJvEecq3Z
             amount:
               type: number
@@ -402,10 +410,11 @@ def create_transaction():
     data = request.get_json()
     user_wallet = data.get('wallet')
     amount = data.get('amount')
+    app_token = data.get('app_token')
     type_transaction = data.get('type_transaction')
 
-    if not user_wallet or not amount or not type_transaction:
-        return jsonify({"error": "User ID, amount and type_transaction are required."}), 400
+    if not user_wallet or not amount or not type_transaction or not app_token:
+        return jsonify({"error": "User ID, amount, type_transaction and app_token are required."}), 400
 
     user = User.query.filter_by(wallet=user_wallet).first()
     type_transaction = TypeTransaction.query.get(type_transaction)
@@ -415,22 +424,14 @@ def create_transaction():
     
     if not type_transaction:
         return jsonify({"error": "Type transaction not found."}), 404
+    
+    if not AppTokenUser.query.filter_by(token=app_token).first():
+        return jsonify({"error": "app token not found."}), 403
 
     commission = amount * user.commission_rate
     transaction = Transaction(amount=amount, commission=commission, user_id=user.id, type_transaction_id=type_transaction.id)
     if type_transaction.id == 2 and user.balance < (amount + commission):
         transaction.status = "Недостаточно средств"
-        
-    
-    # if type_transaction.id == 1:
-    #     user.balance += amount
-    #     user.balance -= commission
-    # else:
-    #     if user.balance >= (amount + commission):
-    #         user.balance -= amount
-    #         user.balance -= commission
-    #     else:
-    #         transaction.status = "Недостаточно средств"
 
     db.session.add(transaction)
     db.session.commit()
@@ -456,6 +457,10 @@ def cancel_transaction():
         schema:
           type: object
           properties:
+            app_token:
+              type: integer
+              description: ID токена приложения
+              example: testnet-8l5SB6YVXsPtTdMt1RLWwG7BJvEecq3Z
             transaction_id:
               type: integer
               description: ID транзакции
@@ -474,9 +479,10 @@ def cancel_transaction():
 
     data = request.get_json()
     transaction_id = data.get('transaction_id')
+    app_token = data.get('app_token')
 
     if not transaction_id:
-        return jsonify({"error": "Transaction ID is required."}), 400
+        return jsonify({"error": "Transaction and app_token ID is required."}), 400
 
     transaction = Transaction.query.get(transaction_id)
     if not transaction:
@@ -484,6 +490,9 @@ def cancel_transaction():
 
     if transaction.status != 'ожидание':
         return jsonify({"error": "Only pending transactions can be canceled."}), 400
+    
+    if not AppTokenUser.query.filter_by(token=app_token).first():
+        return jsonify({"error": "app token not found."}), 403
 
     transaction.status = 'истекла'
     db.session.commit()
