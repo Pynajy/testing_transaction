@@ -6,6 +6,8 @@ from flask_wtf import FlaskForm, CSRFProtect
 from wtforms import StringField, DecimalField, IntegerField, URLField, SubmitField, PasswordField, SelectField
 from wtforms.validators import DataRequired, NumberRange, URL, Length, EqualTo
 from werkzeug.security import generate_password_hash, check_password_hash
+import random
+import string
 import click
 from datetime import datetime, timedelta
 import requests
@@ -79,6 +81,24 @@ class Transaction(db.Model):
     def __repr__(self):
         return f'<Транзакция {self.id}: Сумма={self.amount}, Комиссия={self.commission}, статус={self.status}>'
 
+class StatusToken(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(256), nullable=True)
+
+
+class AppTokenUser(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(256), nullable=True)
+
+    status_token_id = db.Column(db.Integer, db.ForeignKey('status_token.id'), nullable=False)
+    status_token = db.relationship('StatusToken', backref=db.backref('transactions', lazy=True))
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('app_token_user', lazy=True))
+
+    def generate_app_token(self, session):
+        self.token = "token-" + ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+        session.commit()
 
 class Settings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -220,6 +240,41 @@ def add_user():
         db.session.commit()
         return redirect(url_for('admin_users'))
     return render_template('add_user.html', form=form)
+
+@app.route('/admin/user/<int:user_id>/token/', methods=['GET'])
+def user_app_token(user_id):
+    if session.get('role') != 'admin' or (session.get('role') == 'user' and int(session.get('user_id')) == int(user_id)):
+        return redirect(url_for('admin_transactions'))
+    query = AppTokenUser.query
+    query = query.filter_by(user_id=user_id)
+    user_app_token_list = query.all()
+
+    return render_template('user_token.html', user_app_tokens=user_app_token_list, user_id=user_id)
+
+@app.route('/admin/user/<int:user_id>/token/add/', methods=['GET'])
+@csrf.exempt
+def add_user_app_token(user_id):
+    if session.get('role') != 'admin' or (session.get('role') == 'user' and int(session.get('user_id')) == int(user_id)):
+        return redirect(url_for('admin_transactions'))
+    user = User.query.get_or_404(user_id)
+    app_user_token = AppTokenUser(
+        user_id = user_id,
+        status_token_id = 1
+        )
+    db.session.add(app_user_token)
+    db.session.commit()
+    app_user_token.generate_app_token(db.session)
+    return redirect(url_for('user_app_token', user_id=user_id))
+
+@app.route('/admin/user/<int:user_id>/token/delete/<int:token_id>', methods=['POST'])
+@csrf.exempt
+def delete_user_app_token(user_id, token_id):
+    if session.get('role') != 'admin' or (session.get('role') == 'user' and int(session.get('user_id')) == int(user_id)):
+        return redirect(url_for('admin_transactions'))
+    token = AppTokenUser.query.get_or_404(token_id)
+    db.session.delete(token)
+    db.session.commit()
+    return redirect(url_for('user_app_token', user_id=user_id))
 
 @app.route('/admin/users/delete/<int:user_id>', methods=['POST'])
 @csrf.exempt
