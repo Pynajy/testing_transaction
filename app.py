@@ -12,6 +12,8 @@ from celery import Celery
 from celery.schedules import crontab
 from flasgger import Swagger
 
+from data.wallet.wallet import Wallet
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['SECRET_KEY'] = 'Gfj3&#jfdsnHDUSDF733SD#'
@@ -192,6 +194,7 @@ def edit_user(user_id):
         user.commission_rate = float(request.form['commission_rate'])
         user.role = str(request.form['role'])
         user.webhook_url = request.form['webhook_url']
+        user.wallet = request.form['wallet']
         db.session.commit()
         return redirect(url_for('admin_users'))
     return render_template('edit_user.html', user=user, form=form)
@@ -230,6 +233,20 @@ def delete_user(user_id):
     db.session.commit()
     return redirect(url_for('admin_users'))
 
+@app.route('/admin/users/wallet/create/<int:user_id>', methods=['POST'])
+@csrf.exempt
+def create_wallet(user_id):
+    if session.get('role') != 'admin':
+        if session.get('role') != 'user':
+            return redirect(url_for('login'))
+        else:
+            return redirect(url_for('admin_transactions'))
+    wallet = Wallet().generate_testnet_wallet()
+    user = User.query.get_or_404(user_id)
+    user.wallet = wallet
+    db.session.commit()
+    return redirect(url_for('edit_user', user_id=user_id))
+
 @app.route('/admin/transactions')
 def admin_transactions():
     user_id = session.get('user_id')
@@ -238,7 +255,7 @@ def admin_transactions():
     if role not in ['admin', 'user']:
         return redirect(url_for('login'))
 
-    filter_user_id = request.args.get('user_id')
+    filter_wallet_id = request.args.get('wallet_id')
     filter_status = request.args.get('status')
     type_transaction = request.args.get('type_transaction')
 
@@ -248,8 +265,9 @@ def admin_transactions():
     if role == 'user':
         query = query.filter_by(user_id=user_id)
 
-    if filter_user_id:
-        query = query.filter_by(user_id=filter_user_id)
+    if filter_wallet_id:
+        user = User.query.filter_by(wallet=filter_wallet_id).first()
+        query = query.filter_by(user_id=(user.id if user else 0))
 
     if filter_status:
         query = query.filter_by(status=filter_status)
@@ -292,10 +310,10 @@ def create_transaction():
         schema:
           type: object
           properties:
-            id:
+            wallet:
               type: integer
-              description: User ID
-              example: 1
+              description: wallet ID
+              example: testnet-8l5SB6YVXsPtTdMt1RLWwG7BJvEecq3Z
             amount:
               type: number
               description: Сумма транзакции
@@ -317,25 +335,24 @@ def create_transaction():
         return jsonify({"error": "Unsupported Media Type. Use application/json."}), 415
 
     data = request.get_json()
-    user_id = data.get('id')
+    user_wallet = data.get('wallet')
     amount = data.get('amount')
     type_transaction = data.get('type_transaction')
 
-    if not user_id or not amount or not type_transaction:
+    if not user_wallet or not amount or not type_transaction:
         return jsonify({"error": "User ID, amount and type_transaction are required."}), 400
 
-    user = User.query.get(user_id)
+    user = User.query.filter_by(wallet=user_wallet).first()
     type_transaction = TypeTransaction.query.get(type_transaction)
 
     if not user:
-        return jsonify({"error": "User not found."}), 404
+        return jsonify({"error": "Wallet not found."}), 404
     
     if not type_transaction:
         return jsonify({"error": "Type transaction not found."}), 404
 
     commission = amount * user.commission_rate
     transaction = Transaction(amount=amount, commission=commission, user_id=user.id, type_transaction_id=type_transaction.id)
-    user = User.query.get_or_404(user_id)
     if type_transaction.id == 1:
         user.balance += amount
         user.balance -= commission

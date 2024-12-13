@@ -23,6 +23,13 @@
             </div>
 
             <div class="mb-3">
+                <label for="wallet" class="form-label">Кошелёк</label>
+                <input class="form-control" id="wallet" name="wallet" value="{{ user.wallet }}" required>
+            </div>
+
+            
+
+            <div class="mb-3">
                 <label for="webhook_url" class="form-label">Webhook URL</label>
                 <input type="url" class="form-control" id="webhook_url" name="webhook_url" value="{{ user.webhook_url }}">
             </div>
@@ -35,10 +42,18 @@
                     <option value="user">user</option>
                 </select>
             </div>
-
+            
             <button type="submit" class="btn btn-success">Сохранить изменения</button>
             <a href="/admin/users" class="btn btn-secondary">Закрыть</a>
         </form>
+    
+    </div>
+    <div class="container mt-5">
+        {% if not user.wallet %}
+        <form action="/admin/users/wallet/create/{{ user.id }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn btn-primary btn-sm">Генерировать Кошелёк</button>
+        </form>
+        {% endif %}
     </div>
 </body>
 </html>
