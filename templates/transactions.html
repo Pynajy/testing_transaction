@@ -12,11 +12,11 @@
 
         <form method="GET" action="/admin/transactions" class="mb-4">
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="user_id" class="form-label">Фильтр по ID пользователя</label>
                     <input type="text" class="form-control" id="user_id" name="user_id" placeholder="Введите ID пользователя" value="{{ request.args.get('user_id', '') }}">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="status" class="form-label">Фильтр по статусу</label>
                     <select id="status" name="status" class="form-select">
                         <option value="">Все</option>
@@ -24,9 +24,18 @@
                         <option value="подтвеждена" {% if request.args.get('status') == 'подтвеждена' %}selected{% endif %}>подтвеждена</option>
                         <option value="отменена" {% if request.args.get('status') == 'отменена' %}selected{% endif %}>отменена</option>
                         <option value="истекла" {% if request.args.get('status') == 'истекла' %}selected{% endif %}>истекла</option>
+                        <option value="Недостаточно средств" {% if request.args.get('status') == 'Недостаточно средств' %}selected{% endif %}>Недостаточно средств</option>
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-3">
+                    <label for="type_transaction" class="form-label">Фильтр по типу</label>
+                    <select id="type_transaction" name="type_transaction" class="form-select">
+                        <option value="">Все</option>
+                        <option value="Пополнение" {% if request.args.get('type_transaction') == 'Пополнение' %}selected{% endif %}>Пополнение</option>
+                        <option value="Списание" {% if request.args.get('type_transaction') == 'Списание' %}selected{% endif %}>Списание</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">Filter</button>
                 </div>
             </div>
@@ -38,6 +47,7 @@
                     <th>ID</th>
                     <th>ID пользователя</th>
                     <th>сумма</th>
+                    <th>Тип</th>
                     <th>Комиссия</th>
                     <th>Статус</th>
                     <th>Время создания</th>
@@ -50,6 +60,7 @@
                     <td>{{ transaction.id }}</td>
                     <td>{{ transaction.user_id }}</td>
                     <td>${{ transaction.amount }}</td>
+                    <td>{{ transaction.type_transaction.title }}</td>
                     <td>${{ transaction.commission }}</td>
                     <td>{{ transaction.status }}</td>
                     <td>{{ transaction.created_at }}</td>

@@ -41,6 +41,7 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False, default='user') 
     balance = db.Column(db.Float, nullable=False, default=0.0)
     commission_rate = db.Column(db.Float, nullable=False, default=0.01) 
+    wallet = db.Column(db.String(256), nullable=True)
     webhook_url = db.Column(db.String(256), nullable=True)
 
     def set_password(self, password):
@@ -52,12 +53,22 @@ class User(db.Model):
     def __repr__(self):
         return f'<User {self.id}: Роль={self.role}, Баланс={self.balance}, Cтавка комиссии={self.commission_rate}, Webhook={self.webhook_url}>'
 
+class TypeTransaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(256), nullable=True)
+    
+    def __repr__(self):
+        return f'Транзакция {self.title}'
+
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Float, nullable=False)
     commission = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='ожидание')
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
+    type_transaction_id = db.Column(db.Integer, db.ForeignKey('type_transaction.id'), nullable=False)
+    type_transaction = db.relationship('TypeTransaction', backref=db.backref('transactions', lazy=True))
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('transactions', lazy=True))
@@ -229,8 +240,10 @@ def admin_transactions():
 
     filter_user_id = request.args.get('user_id')
     filter_status = request.args.get('status')
+    type_transaction = request.args.get('type_transaction')
 
     query = Transaction.query
+    type_transaction_id = TypeTransaction.query.filter_by(title=type_transaction).first()
 
     if role == 'user':
         query = query.filter_by(user_id=user_id)
@@ -240,6 +253,9 @@ def admin_transactions():
 
     if filter_status:
         query = query.filter_by(status=filter_status)
+    
+    if type_transaction:
+        query = query.filter_by(type_transaction_id=type_transaction_id.id)
 
     transactions = query.all()
 
@@ -284,6 +300,10 @@ def create_transaction():
               type: number
               description: Сумма транзакции
               example: 100.50
+            type_transaction:
+              type: number
+              description: Сумма транзакции
+              example: 1
         required: true
     responses:
       201:
@@ -299,16 +319,32 @@ def create_transaction():
     data = request.get_json()
     user_id = data.get('id')
     amount = data.get('amount')
+    type_transaction = data.get('type_transaction')
 
-    if not user_id or not amount:
-        return jsonify({"error": "User ID and amount are required."}), 400
+    if not user_id or not amount or not type_transaction:
+        return jsonify({"error": "User ID, amount and type_transaction are required."}), 400
 
     user = User.query.get(user_id)
+    type_transaction = TypeTransaction.query.get(type_transaction)
+
     if not user:
         return jsonify({"error": "User not found."}), 404
+    
+    if not type_transaction:
+        return jsonify({"error": "Type transaction not found."}), 404
 
     commission = amount * user.commission_rate
-    transaction = Transaction(amount=amount, commission=commission, user_id=user.id)
+    transaction = Transaction(amount=amount, commission=commission, user_id=user.id, type_transaction_id=type_transaction.id)
+    user = User.query.get_or_404(user_id)
+    if type_transaction.id == 1:
+        user.balance += amount
+        user.balance -= commission
+    else:
+        if user.balance >= amount:
+            user.balance -= amount
+            user.balance -= commission
+        else:
+            transaction.status = "Недостаточно средств"
 
     db.session.add(transaction)
     db.session.commit()
@@ -402,9 +438,11 @@ def check_transaction():
 
     return jsonify({
         "transaction_id": transaction.id,
+        "user": transaction.user.id,
         "amount": transaction.amount,
         "commission": transaction.commission,
         "status": transaction.status,
+        "type_transaction": str(transaction.type_transaction),
         "created_at": transaction.created_at
     }), 200
 

@@ -8,7 +8,7 @@
 
 ### Команды
 - **flask run** - Запуск
-- **flask create-admin 100.0** - Создать админа с балансом 100 
+- **flask create-admin <username> <password>** - Создать админа 
 
 **Запуск Celery windows**
 - **celery -A app.celery worker --loglevel=info --pool=solo**
