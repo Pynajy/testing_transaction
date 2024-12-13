@@ -292,6 +292,15 @@ def transaction_detail(transaction_id):
     if request.method == 'POST':
         status = request.form['status']
         if transaction.status == 'ожидание' and status in ['подтвеждена', 'отменена']:
+            if status == "подтвеждена":
+                if transaction.type_transaction_id == 1:
+                    transaction.user.balance += transaction.amount
+                    transaction.user.balance -= transaction.commission
+                else:
+                    if transaction.user.balance >= (transaction.amount + transaction.commission):
+                        transaction.user.balance -= (transaction.amount + transaction.commission)
+                    else:
+                        transaction.status = "Недостаточно средств"
             transaction.status = status
             db.session.commit()
         return redirect(url_for('admin_transactions'))
@@ -354,15 +363,19 @@ def create_transaction():
 
     commission = amount * user.commission_rate
     transaction = Transaction(amount=amount, commission=commission, user_id=user.id, type_transaction_id=type_transaction.id)
-    if type_transaction.id == 1:
-        user.balance += amount
-        user.balance -= commission
-    else:
-        if user.balance >= (amount + commission):
-            user.balance -= amount
-            user.balance -= commission
-        else:
-            transaction.status = "Недостаточно средств"
+    if type_transaction.id == 2 and user.balance < (amount + commission):
+        transaction.status = "Недостаточно средств"
+        
+    
+    # if type_transaction.id == 1:
+    #     user.balance += amount
+    #     user.balance -= commission
+    # else:
+    #     if user.balance >= (amount + commission):
+    #         user.balance -= amount
+    #         user.balance -= commission
+    #     else:
+    #         transaction.status = "Недостаточно средств"
 
     db.session.add(transaction)
     db.session.commit()
