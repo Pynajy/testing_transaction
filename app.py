@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import desc
 from flask_migrate import Migrate
 from flask_wtf import FlaskForm, CSRFProtect
 from wtforms import StringField, DecimalField, IntegerField, URLField, SubmitField, PasswordField, SelectField
@@ -259,7 +260,7 @@ def admin_transactions():
     filter_status = request.args.get('status')
     type_transaction = request.args.get('type_transaction')
 
-    query = Transaction.query
+    query = Transaction.query.order_by(desc(Transaction.id))
     type_transaction_id = TypeTransaction.query.filter_by(title=type_transaction).first()
 
     if role == 'user':
@@ -357,7 +358,7 @@ def create_transaction():
         user.balance += amount
         user.balance -= commission
     else:
-        if user.balance >= amount:
+        if user.balance >= (amount + commission):
             user.balance -= amount
             user.balance -= commission
         else:
